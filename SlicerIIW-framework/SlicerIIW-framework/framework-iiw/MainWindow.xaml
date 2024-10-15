@@ -23,7 +23,7 @@
 
             <!--To assign an element to a column, add "Grid.Column=COLUMN_NUMBER" to the element-->
             <Button Margin="50 0 0 0" Grid.Column="0" Width="auto" Height="65"  Background="White" HorizontalAlignment="Left" Padding="50 0" FontSize="18px" FontWeight="Bold" Click="Load_Model_Button_Click">Load Model</Button>
-            <Button Margin="0 0 50 0" Grid.Column="1" Width="auto" Height="65"  Background="White" HorizontalAlignment="Right" Padding="50 0" FontSize="18px" FontWeight="Bold" Click="Slice_Model_Button_Click">Slice Model</Button>
+            <Button Margin="46,42,0,42" Grid.Column="1" Width="auto" Height="65"  Background="White" HorizontalAlignment="Left" Padding="50 0" FontSize="18px" FontWeight="Bold" Click="Slice_Model_Button_Click">Slice Model</Button>
         </Grid>
 
         <Grid Grid.Row="1" Width="auto">

@@ -104,21 +104,26 @@ namespace framework_iiw.Modules
         // Nordin: Help function to check and add intersection points between two vertices
         private void AddIntersection(Point3D p1, Point3D p2, double slicingPlaneHeight, List<Point3D> intersectionPoints)
         {
+            ////TODO - UGLY ATTEMPT AT BUGFIX
+            //if(p1.Z == slicingPlaneHeight && p2.Z == p1.Z){
+            //    intersectionPoints.Add(p1);
+            //    return;
+            //}
             if ((p1.Z <= slicingPlaneHeight && p2.Z >= slicingPlaneHeight) || (p1.Z >= slicingPlaneHeight && p2.Z <= slicingPlaneHeight))
             {
                 // Linear interpolation to find intersection point
-                double t = (slicingPlaneHeight - p1.Z) / (p2.Z - p1.Z);
+                double t = (slicingPlaneHeight - p1.Z) / (p2.Z - p1.Z); //I think this ends up being 0/0 when all are same height. How is that legal? Why does this not throw an error?
                 double x = p1.X + t * (p2.X - p1.X);
                 double y = p1.Y + t * (p2.Y - p1.Y);
                 intersectionPoints.Add(new Point3D(x, y, slicingPlaneHeight));
             }
+
         }
         private double GetSlicingPlaneHeight(double zOffset, double layer)
         {
             // TODO
             // Nordin: Assuming each layer has a fixed height, calculate the Z-height for the current layer
-            double layerHeight = 0.2;  // Example: each layer is 0.2 units tall
-            return zOffset + layer * layerHeight;
+            return zOffset + layer + 0.0000000001;
             //return 0;
         }
 
