@@ -48,17 +48,30 @@ namespace framework_iiw.Modules
             var slicingPlaneHeight = GetSlicingPlaneHeight(meshGeometry.Bounds.Z, layer);
 
             // Get paths according to slicing
-            var paths = SlicingAlgorithm(slicingPlaneHeight, triangleIndices, positions);
+            List<LineSegment> paths = SlicingAlgorithm(slicingPlaneHeight, triangleIndices, positions);
 
             // Combine paths
-            var combinedPaths = ConnectLineSegments(paths);
+            PathsD combinedPaths = ConnectLineSegments(paths);
             // Adjust to line segments
-
-            return combinedPaths;
+            PathsD shell = generateShellForPathsD(combinedPaths);
+            return shell;
         }
 
         // ------
+        private PathsD generateShellForPathsD(PathsD paths)
+        {
+            ClipperD cd = new ClipperD();
+            //PathsD inflatedPaths = Clipper.InflatePaths(paths, 0.5, JoinType.Round);
+            PathsD flated = Clipper.InflatePaths(paths, 1.5, JoinType.Miter, EndType.Round);
+            cd.AddSubject(flated);
 
+            PathsD result = new PathsD();
+
+            cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
+            
+            // Return the resulting shell paths
+            return result;
+        }
         // --- Slicing Algorithm
 
         private List<LineSegment> SlicingAlgorithm(double slicingPlaneHeight, List<int> triangleIndices, List<Point3D> positions) 
@@ -104,11 +117,6 @@ namespace framework_iiw.Modules
         // Nordin: Help function to check and add intersection points between two vertices
         private void AddIntersection(Point3D p1, Point3D p2, double slicingPlaneHeight, List<Point3D> intersectionPoints)
         {
-            ////TODO - UGLY ATTEMPT AT BUGFIX
-            //if(p1.Z == slicingPlaneHeight && p2.Z == p1.Z){
-            //    intersectionPoints.Add(p1);
-            //    return;
-            //}
             if ((p1.Z <= slicingPlaneHeight && p2.Z >= slicingPlaneHeight) || (p1.Z >= slicingPlaneHeight && p2.Z <= slicingPlaneHeight))
             {
                 // Linear interpolation to find intersection point
