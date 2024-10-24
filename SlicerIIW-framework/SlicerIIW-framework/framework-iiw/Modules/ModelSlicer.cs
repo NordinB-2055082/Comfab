@@ -3,6 +3,7 @@ using framework_iiw.Data_Structures;
 using framework_iiw.Exceptions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Media.Media3D;
 
@@ -60,7 +61,34 @@ namespace framework_iiw.Modules
         // ------
         private PathsD generateShellForPathsD(PathsD paths)
         {
+            string filePath = "C:/Users/nordi/Documents/4MA/Computational fabrication/Slicer taak/git 2/Comfab/SlicerIIW-framework/SlicerIIW-framework/framework-iiw/Modules/shell_output.txt";
+
             ClipperD cd = new ClipperD();
+            
+            double outerOffset = -SlicerSettings.NozzleThickness / 2;
+            PathsD outerShell = Clipper.InflatePaths(paths, outerOffset, JoinType.Miter, EndType.Round);
+
+            
+            cd.AddSubject(outerShell);
+
+           
+            double innerOffset = -SlicerSettings.NozzleThickness;
+            PathsD innerShell = Clipper.InflatePaths(outerShell, innerOffset, JoinType.Miter, EndType.Round);
+
+            
+            cd.AddSubject(innerShell);
+
+            PathsD result = new PathsD();
+
+            
+            cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
+            WritePathsToFile(filePath, result); // Write final result to file
+            // Debug the result paths
+            PrintPaths(result);
+           
+            // Return the resulting shell paths
+            return result;
+            /*
             //PathsD inflatedPaths = Clipper.InflatePaths(paths, 0.5, JoinType.Round);
             PathsD flated = Clipper.InflatePaths(paths, 1.5, JoinType.Miter, EndType.Round);
             cd.AddSubject(flated);
@@ -70,15 +98,45 @@ namespace framework_iiw.Modules
             cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
             
             // Return the resulting shell paths
-            return result;
+            return result; */
+
         }
+
+        private void WritePathsToFile(string filePath, PathsD paths)
+        {
+            using (StreamWriter writer = new StreamWriter(filePath, append: true)) // Append true to keep writing if file exists
+            {
+                writer.WriteLine("---------------------------------------------");
+                for (int i = 0; i < paths.Count; i++)
+                {
+                    writer.WriteLine("Path " + (i + 1) + ":");
+                    foreach (var point in paths[i])
+                    {
+                        writer.WriteLine($"  Point: X = {point.x}, Y = {point.y}");
+                    }
+                }
+                writer.WriteLine();  // Add some spacing after writing each PathsD object
+            }
+        }
+
+        private void PrintPaths(PathsD paths)
+        {
+            for (int i = 0; i < paths.Count; i++)
+            {
+                Console.WriteLine("Path " + (i + 1) + ":");
+                foreach (var point in paths[i])
+                {
+                    Console.WriteLine($"  Point: X = {point.x}, Y = {point.y}");
+                }
+            }
+        }
+
         // --- Slicing Algorithm
 
         private List<LineSegment> SlicingAlgorithm(double slicingPlaneHeight, List<int> triangleIndices, List<Point3D> positions) 
         {
             var paths = new List<LineSegment>();
             
-            // NORDIN 
             for (int i = 0; i < triangleIndices.Count; i += 3)
             {
                 // Get the vertices of the triangle
@@ -102,7 +160,7 @@ namespace framework_iiw.Modules
             return paths;
         }
 
-        // NORDIN: Help function to compute the intersection of a triangle with the slicing plane
+        // Help function to compute the intersection of a triangle with the slicing plane
         private List<Point3D> GetPlaneIntersections(Point3D v0, Point3D v1, Point3D v2, double slicingPlaneHeight)
         {
             var intersectionPoints = new List<Point3D>();
@@ -114,7 +172,7 @@ namespace framework_iiw.Modules
 
             return intersectionPoints;
         }
-        // Nordin: Help function to check and add intersection points between two vertices
+        // Help function to check and add intersection points between two vertices
         private void AddIntersection(Point3D p1, Point3D p2, double slicingPlaneHeight, List<Point3D> intersectionPoints)
         {
             if ((p1.Z <= slicingPlaneHeight && p2.Z >= slicingPlaneHeight) || (p1.Z >= slicingPlaneHeight && p2.Z <= slicingPlaneHeight))
@@ -129,8 +187,8 @@ namespace framework_iiw.Modules
         }
         private double GetSlicingPlaneHeight(double zOffset, double layer)
         {
-            // TODO
-            // Nordin: Assuming each layer has a fixed height, calculate the Z-height for the current layer
+            
+            // Assuming each layer has a fixed height, calculate the Z-height for the current layer
             return zOffset + layer + 0.0000000001;
             //return 0;
         }
@@ -140,7 +198,6 @@ namespace framework_iiw.Modules
         private PathsD ConnectLineSegments(List<LineSegment> lineSegments) {
             if (lineSegments.Count == 0) return new PathsD();
 
-            // TODO: Nordin
             var paths = new PathsD();
             var remainingSegments = new List<LineSegment>(lineSegments);
 
