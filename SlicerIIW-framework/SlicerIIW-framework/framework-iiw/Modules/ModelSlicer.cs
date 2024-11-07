@@ -30,13 +30,18 @@ namespace framework_iiw.Modules
             List<Point3D> positions = meshGeometry3D.Positions.ToList();
 
             var layers = new List<PathsD>();
+            var layersInnerPaths = new List<PathsD>(); 
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
-                var layer = SliceModelAtSpecificLayer(idx * SlicerSettings.LayerHeight, meshGeometry3D, triangleIndices, positions);
+                var result = SliceModelAtSpecificLayer(idx * SlicerSettings.LayerHeight, meshGeometry3D, triangleIndices, positions);
 
+                var layer = result.Item1;
                 layers.Add(layer);
+
+                var innerPaths = result.Item2;
+                layersInnerPaths.Add(innerPaths);
             }
 
             return layers;
@@ -44,7 +49,7 @@ namespace framework_iiw.Modules
 
         // --- Slice Object At Specific Layer
 
-        private PathsD SliceModelAtSpecificLayer(double layer, MeshGeometry3D meshGeometry, List<int> triangleIndices, List<Point3D> positions)
+        private (PathsD, PathsD) SliceModelAtSpecificLayer(double layer, MeshGeometry3D meshGeometry, List<int> triangleIndices, List<Point3D> positions)
         {
             var slicingPlaneHeight = GetSlicingPlaneHeight(meshGeometry.Bounds.Z, layer);
 
@@ -53,82 +58,54 @@ namespace framework_iiw.Modules
 
             // Combine paths
             PathsD combinedPaths = ConnectLineSegments(paths);
-            // Adjust to line segments
-            PathsD shell = generateShellForPathsD(combinedPaths);
-            return shell;
+            
+            // Make the shells to print the walls
+            var (innerPaths, shellPaths) = generateShellForPathsD(combinedPaths);
+
+            return (shellPaths, innerPaths);
         }
 
         // ------
-        private PathsD generateShellForPathsD(PathsD paths)
+        private (PathsD, PathsD) generateShellForPathsD(PathsD paths)
         {
-            string filePath = "C:/Users/nordi/Documents/4MA/Computational fabrication/Slicer taak/git 2/Comfab/SlicerIIW-framework/SlicerIIW-framework/framework-iiw/Modules/shell_output.txt";
+            PathsD sortedPolygons = Clipper.BooleanOp(ClipType.Union, paths, null, FillRule.EvenOdd, 5);
 
-            ClipperD cd = new ClipperD();
-            
-            double outerOffset = -SlicerSettings.NozzleThickness / 2;
-            PathsD outerShell = Clipper.InflatePaths(paths, outerOffset, JoinType.Miter, EndType.Round);
+            PathsD results = new PathsD();
+            PathsD innerPaths = new PathsD();
 
-            
-            cd.AddSubject(outerShell);
-
-           
-            double innerOffset = -SlicerSettings.NozzleThickness;
-            PathsD innerShell = Clipper.InflatePaths(outerShell, innerOffset, JoinType.Miter, EndType.Round);
-
-            
-            cd.AddSubject(innerShell);
-
-            PathsD result = new PathsD();
-
-            
-            cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
-            WritePathsToFile(filePath, result); // Write final result to file
-            // Debug the result paths
-            PrintPaths(result);
-           
-            // Return the resulting shell paths
-            return result;
-            /*
-            //PathsD inflatedPaths = Clipper.InflatePaths(paths, 0.5, JoinType.Round);
-            PathsD flated = Clipper.InflatePaths(paths, 1.5, JoinType.Miter, EndType.Round);
-            cd.AddSubject(flated);
-
-            PathsD result = new PathsD();
-
-            cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
-            
-            // Return the resulting shell paths
-            return result; */
-
-        }
-
-        private void WritePathsToFile(string filePath, PathsD paths)
-        {
-            using (StreamWriter writer = new StreamWriter(filePath, append: true)) // Append true to keep writing if file exists
+            for (int i = 0; i < SlicerSettings.AmountOfShells; i++)
             {
-                writer.WriteLine("---------------------------------------------");
-                for (int i = 0; i < paths.Count; i++)
-                {
-                    writer.WriteLine("Path " + (i + 1) + ":");
-                    foreach (var point in paths[i])
-                    {
-                        writer.WriteLine($"  Point: X = {point.x}, Y = {point.y}");
-                    }
-                }
-                writer.WriteLine();  // Add some spacing after writing each PathsD object
+                results.AddRange(Clipper.InflatePaths(sortedPolygons, -((SlicerSettings.NozzleThickness / 2) + (i * SlicerSettings.NozzleThickness)), JoinType.Miter, EndType.Polygon, 5));
             }
-        }
 
-        private void PrintPaths(PathsD paths)
-        {
-            for (int i = 0; i < paths.Count; i++)
-            {
-                Console.WriteLine("Path " + (i + 1) + ":");
-                foreach (var point in paths[i])
-                {
-                    Console.WriteLine($"  Point: X = {point.x}, Y = {point.y}");
-                }
-            }
+            innerPaths.AddRange(Clipper.InflatePaths(sortedPolygons, -((SlicerSettings.NozzleThickness / 2) + ((SlicerSettings.AmountOfShells - 1) * SlicerSettings.NozzleThickness)), JoinType.Miter, EndType.Polygon, 5));
+
+            return (innerPaths, results);
+
+            //ClipperD cd = new ClipperD();
+
+            //double outerOffset = -SlicerSettings.NozzleThickness / 2;
+            //PathsD outerShell = Clipper.InflatePaths(paths, outerOffset, JoinType.Miter, EndType.Round);
+
+
+            //cd.AddSubject(outerShell);
+
+
+            //double innerOffset = -SlicerSettings.NozzleThickness;
+            //PathsD innerShell = Clipper.InflatePaths(outerShell, innerOffset, JoinType.Miter, EndType.Round);
+
+
+            //cd.AddSubject(innerShell);
+
+            //PathsD result = new PathsD();
+
+
+            //cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
+
+            //// Return the resulting shell paths
+            //return result;
+
+
         }
 
         // --- Slicing Algorithm
@@ -253,13 +230,13 @@ namespace framework_iiw.Modules
             return paths;
 
         }
-        //Nordin: Helper method to convert a Point3D to a PointD (2D point)
+        // convert a Point3D to a PointD (2D point)
         private PointD ConvertToPointD(Point3D point3D)
         {
             return new PointD { x = point3D.X, y = point3D.Y };
         }
 
-        // Nordin: Helper method to check if two PointD objects are close enough to be considered the same
+        // method to check if two PointD objects are close enough to be considered the same
         private bool ArePointsClose(PointD p1, PointD p2, double tolerance = 1e-6)
         {
             return Math.Abs(p1.x - p2.x) < tolerance && Math.Abs(p1.y - p2.y) < tolerance;
