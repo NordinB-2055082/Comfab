@@ -4,7 +4,8 @@ using System.IO;
 using System.Reflection.Emit;
 using System.Text;
 using Clipper2Lib;
-using framework_iiw.Data_Structures;  // Assuming PathsD and PathD are defined here
+
+using SlicerSettings = framework_iiw.Settings.Settings;
 
 namespace framework_iiw.Modules
 {
@@ -36,11 +37,42 @@ namespace framework_iiw.Modules
 
             gCode.Add(startCode);
 
-            
 
-            for (int i = 1; i <= layers.Count; i++)
+            double extrusionMultiplier = 0.05; // adjust based on filament type and printer calibration
+
+
+            // for each layer
+            for (int i = 0; i < layers.Count; i++)
             {
-                //TODO generate G-code van paths voor elke layer 
+                double currentLayerHeight = SlicerSettings.LayerHeight * (i + 1);
+                gCode.Add($"G1 Z{currentLayerHeight:F2} F3000 ; Move to layer {i + 1}");
+
+                // for each path in the layer
+                foreach (var path in layers[i])
+                {
+                    if (path.Count < 2)
+                        continue; // skip if the path has fewer than 2 points
+
+                    // move to the starting point of the path without extrusion
+                    var start = path[0];
+                    gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
+
+                    // extrude along the path
+                    for (int j = 1; j < path.Count; j++)
+                    {
+                        var point = path[j];
+                        double distance = CalculateDistance(start, point);
+                        double extrusion = distance * extrusionMultiplier;
+
+                        gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
+
+                        // update the start point to the current point
+                        start = point;
+                    }
+                }
+
+                // Optional: retraction command for layer transitions if needed
+                //gCode.Add("G1 F2400 E-2 ; Retract filament slightly before layer change");
             }
 
             string endCode = "M140 S0 ; set bed temperature to 0\r\n" +
@@ -66,41 +98,6 @@ namespace framework_iiw.Modules
                     file.WriteLine(line);
                 }
             }
-        }
-      
-
-        // Method to generate G-code for each layer based on paths
-        public void GenerateLayerGCode(PathsD layerPaths, double layerHeight)
-        {
-            gcode.AppendLine($"G1 Z{layerHeight:F2} ; Move to layer height {layerHeight}");
-
-            foreach (var path in layerPaths)
-            {
-                GeneratePathGCode(path);
-            }
-        }
-
-        // Method to generate G-code for each path in a layer
-        private void GeneratePathGCode(PathD path)
-        {
-            if (path.Count < 2) return;  // Ignore paths that are too short
-
-            // Move to the start of the path without extruding
-            var startPoint = path[0];
-            gcode.AppendLine($"G0 X{startPoint.x:F2} Y{startPoint.y:F2} ; Move to start of path");
-
-            // Generate extrusion commands for each segment of the path
-            for (int i = 1; i < path.Count; i++)
-            {
-                var endPoint = path[i];
-                double distance = CalculateDistance(path[i - 1], endPoint);
-                double extrusionAmount = distance * extrusionMultiplier;
-
-                gcode.AppendLine($"G1 X{endPoint.x:F2} Y{endPoint.y:F2} E{extrusionAmount:F4}");
-            }
-
-            // Retract filament at the end of each path
-            gcode.AppendLine("G1 E-0.5 ; Retract filament slightly");
         }
 
       

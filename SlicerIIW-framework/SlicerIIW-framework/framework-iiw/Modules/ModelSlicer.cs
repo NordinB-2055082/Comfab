@@ -43,6 +43,8 @@ namespace framework_iiw.Modules
                 var innerPaths = result.Item2;
                 layersInnerPaths.Add(innerPaths);
             }
+            GCodeGenerator gCode = new GCodeGenerator();
+            gCode.GenerateGCode(layers);
 
             return layers;
         }
