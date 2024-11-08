@@ -14,8 +14,4 @@
     <PackageReference Include="HelixToolkit.Wpf" Version="2.24.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="GCodeOutput\" />
-  </ItemGroup>
-
 </Project>
