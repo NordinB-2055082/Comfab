@@ -25,6 +25,7 @@ namespace framework_iiw.Modules
             if (geometryModel3D == null) { throw new NullException("Geometry Model Must Be Loaded First"); }
 
             MeshGeometry3D meshGeometry3D = ModelLoader.LoadMesh(geometryModel3D);
+            Rect3D meshBounds = meshGeometry3D.Bounds; // Infill: get bounds
 
             List<int> triangleIndices = meshGeometry3D.TriangleIndices.ToList();
             List<Point3D> positions = meshGeometry3D.Positions.ToList();
@@ -32,16 +33,23 @@ namespace framework_iiw.Modules
             var layers = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
+            var layersInfillPaths = new List<PathsD>();
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
                 var result = SliceModelAtSpecificLayer(idx * SlicerSettings.LayerHeight, meshGeometry3D, triangleIndices, positions);
 
                 var layer = result.Item1;
-                layers.Add(layer);
-
                 var innerPaths = result.Item2;
+                layers.Add(layer);
                 layersInnerPaths.Add(innerPaths);
+
+                // generate the infill grid for the current layer
+                PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.InfillSpacing);
+                // clip the infill pattern to the current layer's inner paths
+                PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
+                layersInfillPaths.Add(clippedInfill);  // Store the infill paths
+
             }
             GCodeGenerator gCode = new GCodeGenerator();
             gCode.GenerateGCode(layers);
@@ -84,30 +92,42 @@ namespace framework_iiw.Modules
 
             return (innerPaths, results);
 
-            //ClipperD cd = new ClipperD();
 
-            //double outerOffset = -SlicerSettings.NozzleThickness / 2;
-            //PathsD outerShell = Clipper.InflatePaths(paths, outerOffset, JoinType.Miter, EndType.Round);
+        }
 
+        // ------ Generate infill Grid
+        private PathsD GenerateInfillGrid(Rect3D bounds, double spacing)
+        {
+            var infillPaths = new PathsD();
 
-            //cd.AddSubject(outerShell);
+            // Horizontal lines
+            for (double y = bounds.Y; y <= bounds.Y + bounds.SizeY; y += spacing)
+            {
+                PathD horizontalLine = new PathD
+                {
+                    new PointD(bounds.X, y),
+                    new PointD(bounds.X + bounds.SizeX, y)
+                };
+                infillPaths.Add(horizontalLine);
+            }
 
+            // Vertical lines
+            for (double x = bounds.X; x <= bounds.X + bounds.SizeX; x += spacing)
+            {
+                PathD verticalLine = new PathD
+                {
+                    new PointD(x, bounds.Y),
+                    new PointD(x, bounds.Y + bounds.SizeY)
+                };
+                infillPaths.Add(verticalLine);
+            }
 
-            //double innerOffset = -SlicerSettings.NozzleThickness;
-            //PathsD innerShell = Clipper.InflatePaths(outerShell, innerOffset, JoinType.Miter, EndType.Round);
-
-
-            //cd.AddSubject(innerShell);
-
-            //PathsD result = new PathsD();
-
-
-            //cd.Execute(ClipType.Xor, FillRule.EvenOdd, result);
-
-            //// Return the resulting shell paths
-            //return result;
-
-
+            return infillPaths;
+        }
+        private PathsD ClipInfillToLayer(PathsD infillGrid, PathsD innerPaths)
+        {
+            // boolean intersection to keep the parts of the grid within the inner paths
+            return Clipper.BooleanOp(ClipType.Intersection, infillGrid, innerPaths, FillRule.EvenOdd);
         }
 
         // --- Slicing Algorithm
