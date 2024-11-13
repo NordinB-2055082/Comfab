@@ -10,7 +10,7 @@ namespace framework_iiw.Settings
 
     class Settings
     {
-        public static double LayerHeight = 0.20, NozzleThickness = 0.4, InfillSpacing = 7.5;
+        public static double LayerHeight = 0.20, NozzleThickness = 0.4, InfillDensity = 7.5;
         public static int AmountOfShells = 5;
     }
 }

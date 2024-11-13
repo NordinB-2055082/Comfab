@@ -34,6 +34,8 @@ namespace framework_iiw.Modules
             var layersInnerPaths = new List<PathsD>(); 
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             var layersInfillPaths = new List<PathsD>();
+            // infill step 2
+            double infillSpacing = SlicerSettings.InfillDensity * meshBounds.SizeX;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
@@ -44,13 +46,14 @@ namespace framework_iiw.Modules
                 layers.Add(layer);
                 layersInnerPaths.Add(innerPaths);
 
-                // generate the infill grid for the current layer
-                PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.InfillSpacing);
-                // clip the infill pattern to the current layer's inner paths
+                // step 3: generate the infill grid for the current layer
+                PathsD infillGrid = GenerateInfillGrid(meshBounds,infillSpacing);
+                // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
-                layersInfillPaths.Add(clippedInfill);  // Store the infill paths
+                layersInfillPaths.Add(clippedInfill);  // store the infill paths
 
             }
+            // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
             gCode.GenerateGCode(layers);
 
