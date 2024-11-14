@@ -36,6 +36,7 @@ namespace framework_iiw.Modules
             var layersInfillPaths = new List<PathsD>();
             // infill step 2
             double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/200;
+            
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
@@ -128,14 +129,28 @@ namespace framework_iiw.Modules
         }
         private PathsD ClipInfillToLayer(PathsD infillGrid, PathsD innerPaths)
         {
+            PathsD square = new PathsD();
+            PathD squarePath = new PathD
+            {
+                new PointD(0, 0),
+                new PointD(150, 0),
+                new PointD(150, 75),
+                new PointD(50, 75)
+            };
+            square.Add(squarePath);
+
+            //TODO: inflate infillGrid first
+            PathsD inflatedGrid = new PathsD();
+            inflatedGrid.AddRange(Clipper.InflatePaths(infillGrid, -((SlicerSettings.NozzleThickness / 2)), JoinType.Miter, EndType.Polygon, 5));
+
 
             // boolean intersection to keep the parts of the grid within the inner paths
             PathsD result = new PathsD();
             ClipperD clipperStore = new ClipperD();
-            clipperStore.AddOpenSubject(infillGrid);
-            clipperStore.AddClip(innerPaths);
+            clipperStore.AddPaths(square, PathType.Subject, true);
+            clipperStore.AddPaths(innerPaths, PathType.Clip, false);
 
-            clipperStore.Execute(ClipType.Intersection, FillRule.EvenOdd, result);
+            clipperStore.Execute(ClipType.Intersection, FillRule.NonZero, result);
             return result;
             //return Clipper.BooleanOp(ClipType.Intersection, infillGrid, innerPaths, FillRule.);
         }
