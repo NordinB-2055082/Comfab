@@ -35,7 +35,7 @@ namespace framework_iiw.Modules
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             var layersInfillPaths = new List<PathsD>();
             // infill step 2
-            double infillSpacing = SlicerSettings.InfillDensity * meshBounds.SizeX;
+            double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/200;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
@@ -51,13 +51,12 @@ namespace framework_iiw.Modules
                 // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
                 layersInfillPaths.Add(clippedInfill);  // store the infill paths
-
             }
             // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
             gCode.GenerateGCode(layers);
 
-            return layers;
+            return layersInfillPaths;
         }
 
         // --- Slice Object At Specific Layer
@@ -129,8 +128,16 @@ namespace framework_iiw.Modules
         }
         private PathsD ClipInfillToLayer(PathsD infillGrid, PathsD innerPaths)
         {
+
             // boolean intersection to keep the parts of the grid within the inner paths
-            return Clipper.BooleanOp(ClipType.Intersection, infillGrid, innerPaths, FillRule.EvenOdd);
+            PathsD result = new PathsD();
+            ClipperD clipperStore = new ClipperD();
+            clipperStore.AddOpenSubject(infillGrid);
+            clipperStore.AddClip(innerPaths);
+
+            clipperStore.Execute(ClipType.Intersection, FillRule.EvenOdd, result);
+            return result;
+            //return Clipper.BooleanOp(ClipType.Intersection, infillGrid, innerPaths, FillRule.);
         }
 
         // --- Slicing Algorithm
