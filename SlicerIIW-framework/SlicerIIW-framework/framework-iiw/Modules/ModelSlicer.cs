@@ -51,7 +51,8 @@ namespace framework_iiw.Modules
                 PathsD infillGrid = GenerateInfillGrid(meshBounds,infillSpacing);
                 // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
-                layersInfillPaths.Add(clippedInfill);  // store the infill paths
+                PathsD combinedInfillAndShell = CombineInfillAndShell(clippedInfill, layer);
+                layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
             }
             // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
@@ -129,19 +130,6 @@ namespace framework_iiw.Modules
         }
         private PathsD ClipInfillToLayer(PathsD infillGrid, PathsD innerPaths)
         {
-            PathsD square = new PathsD();
-            PathD squarePath = new PathD
-            {
-                new PointD(0, 0),
-                new PointD(150, 0),
-                new PointD(150, 75),
-                new PointD(50, 75)
-            };
-            square.Add(squarePath);
-
-            //TODO: inflate infillGrid first
-
-
             // boolean intersection to keep the parts of the grid within the inner paths
             PathsD result = new PathsD();
             ClipperD clipperStore = new ClipperD();
@@ -154,7 +142,16 @@ namespace framework_iiw.Modules
         }
 
         // --- Slicing Algorithm
+        private PathsD CombineInfillAndShell(PathsD infill, PathsD shell)
+        {
+            PathsD result = new PathsD();
+            ClipperD clipperStore = new ClipperD();
+            clipperStore.AddPaths(infill, PathType.Subject, false);
+            clipperStore.AddPaths(shell, PathType.Subject, false);
 
+            clipperStore.Execute(ClipType.Union, FillRule.EvenOdd, result);
+            return result;
+        }
         private List<LineSegment> SlicingAlgorithm(double slicingPlaneHeight, List<int> triangleIndices, List<Point3D> positions) 
         {
             var paths = new List<LineSegment>();
