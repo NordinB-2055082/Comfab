@@ -56,7 +56,7 @@ namespace framework_iiw.Modules
             }
             // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
-            gCode.GenerateGCode(layers);
+            gCode.GenerateGCode(layersInfillPaths);
 
             return layersInfillPaths;
         }
