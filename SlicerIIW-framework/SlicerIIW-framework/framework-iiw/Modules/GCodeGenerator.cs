@@ -16,7 +16,7 @@ namespace framework_iiw.Modules
         {
 
         }
-        public void GenerateGCode(List<PathsD> layers)
+        public void GenerateGCode(List<PathsD> layers, List<PathsD> infillPaths)
         {
             List<string> gCode = new List<string>();
             string startCode = "M140 S60 ;set bed temperature\r\n" +
@@ -28,9 +28,7 @@ namespace framework_iiw.Modules
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
                 "G1 X0.1 Y20 Z0.3 F5000.0 ; Move to start position\r\n" +
-                "G1 X0.1 Y200.0 Z0.3 F1500 E15 ; Draw the first line\r\n" +
-                "G1 X0.4 Y200.0 Z0.3 F5000.0 ; Move to side a little\r\n" +
-                "G1 X0.4 Y20 Z0.3 F1500.0 E30 ; Draw the second line\r\n" +
+
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
                 "G92 E0\r\nG1 F2400 E-5 ;retract filament to avoid oozing\r\nM107 ; fan off for first layer\r\n\r\n";
@@ -39,7 +37,7 @@ namespace framework_iiw.Modules
 
 
             double extrusionMultiplier = 0.05; // adjust based on filament type and printer calibration
-
+            double extrusion = 0.0;
 
             // for each layer
             for (int i = 0; i < layers.Count; i++)
@@ -62,7 +60,7 @@ namespace framework_iiw.Modules
                     {
                         var point = path[j];
                         double distance = CalculateDistance(start, point);
-                        double extrusion = distance * extrusionMultiplier;
+                        extrusion += distance * extrusionMultiplier;
 
                         gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
 
@@ -71,6 +69,28 @@ namespace framework_iiw.Modules
                     }
                 }
 
+                foreach (var path in infillPaths[i])
+                {
+                    if (path.Count < 2)
+                        continue; // skip if the path has fewer than 2 points
+
+                    // move to the starting point of the path without extrusion
+                    var start = path[0];
+                    gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
+
+                    // extrude along the path
+                    for (int j = 1; j < path.Count; j++)
+                    {
+                        var point = path[j];
+                        double distance = CalculateDistance(start, point);
+                        extrusion += distance * extrusionMultiplier;
+
+                        gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
+
+                        // update the start point to the current point
+                        start = point;
+                    }
+                }
                 // Optional: retraction command for layer transitions if needed
                 //gCode.Add("G1 F2400 E-2 ; Retract filament slightly before layer change");
             }

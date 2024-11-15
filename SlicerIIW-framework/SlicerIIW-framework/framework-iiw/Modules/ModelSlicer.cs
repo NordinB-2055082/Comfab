@@ -31,12 +31,13 @@ namespace framework_iiw.Modules
             List<Point3D> positions = meshGeometry3D.Positions.ToList();
 
             var layers = new List<PathsD>();
+            var clippedInfillPaths = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             var layersInfillPaths = new List<PathsD>();
             // infill step 2
-            double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/100;
-            
+            //double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/100;
+            double infillSpacing = 10;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
@@ -48,15 +49,16 @@ namespace framework_iiw.Modules
                 layersInnerPaths.Add(innerPaths);
 
                 // step 3: generate the infill grid for the current layer
-                PathsD infillGrid = GenerateInfillGrid(meshBounds,infillSpacing);
+                PathsD infillGrid = GenerateInfillGrid(meshBounds,infillSpacing, false);
                 // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
                 PathsD combinedInfillAndShell = CombineInfillAndShell(clippedInfill, layer);
+                clippedInfillPaths.Add(clippedInfill);
                 layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
             }
             // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
-            gCode.GenerateGCode(layersInfillPaths);
+            gCode.GenerateGCode(layers, clippedInfillPaths);
 
             return layersInfillPaths;
         }
@@ -100,7 +102,7 @@ namespace framework_iiw.Modules
         }
 
         // ------ Generate infill Grid
-        private PathsD GenerateInfillGrid(Rect3D bounds, double spacing)
+        private PathsD GenerateInfillGrid(Rect3D bounds, double spacing, Boolean fullgrid = false)
         {
             var infillPaths = new PathsD();
 
@@ -114,7 +116,10 @@ namespace framework_iiw.Modules
                 };
                 infillPaths.Add(horizontalLine);
             }
+            if (fullgrid)
+            {
 
+            }
             // Vertical lines
             for (double x = bounds.X; x <= bounds.X + bounds.SizeX; x += spacing)
             {
