@@ -89,6 +89,8 @@ namespace framework_iiw.Modules
             PathsD results = new PathsD();
             PathsD innerPaths = new PathsD();
 
+            //TODO dubbelcheck NozzleThickness
+
             for (int i = 0; i < SlicerSettings.AmountOfShells; i++)
             {
                 results.AddRange(Clipper.InflatePaths(sortedPolygons, -((SlicerSettings.NozzleThickness / 2) + (i * SlicerSettings.NozzleThickness)), JoinType.Miter, EndType.Polygon, 5));

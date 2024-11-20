@@ -36,63 +36,25 @@ namespace framework_iiw.Modules
             gCode.Add(startCode);
 
 
-            double extrusionMultiplier = 0.05; // adjust based on filament type and printer calibration
-            double extrusion = 0.0;
+            // Filament and nozzle properties
+            double filamentArea = Math.PI * Math.Pow(SlicerSettings.FilamentDiameter / 2, 2);
+            double layerHeight = SlicerSettings.LayerHeight;
+            double lineWidth = SlicerSettings.NozzleThickness;
 
-            // for each layer
+            double extrusion = 0.0; // cumulative extrusion
+
             for (int i = 0; i < layers.Count; i++)
             {
                 double currentLayerHeight = SlicerSettings.LayerHeight * (i + 1);
                 gCode.Add($"G1 Z{currentLayerHeight:F2} F3000 ; Move to layer {i + 1}");
 
-                // for each path in the layer
-                foreach (var path in layers[i])
-                {
-                    if (path.Count < 2)
-                        continue; // skip if the path has fewer than 2 points
+                // shell paths
+                gCode.Add("; --- Shell Paths ---");
+                extrusion = AddPathsToGCode(layers[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
 
-                    // move to the starting point of the path without extrusion
-                    var start = path[0];
-                    gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
-
-                    // extrude along the path
-                    for (int j = 1; j < path.Count; j++)
-                    {
-                        var point = path[j];
-                        double distance = CalculateDistance(start, point);
-                        extrusion += distance * extrusionMultiplier;
-
-                        gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
-
-                        // update the start point to the current point
-                        start = point;
-                    }
-                }
-
-                foreach (var path in infillPaths[i])
-                {
-                    if (path.Count < 2)
-                        continue; // skip if the path has fewer than 2 points
-
-                    // move to the starting point of the path without extrusion
-                    var start = path[0];
-                    gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
-
-                    // extrude along the path
-                    for (int j = 1; j < path.Count; j++)
-                    {
-                        var point = path[j];
-                        double distance = CalculateDistance(start, point);
-                        extrusion += distance * extrusionMultiplier;
-
-                        gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
-
-                        // update the start point to the current point
-                        start = point;
-                    }
-                }
-                // Optional: retraction command for layer transitions if needed
-                //gCode.Add("G1 F2400 E-2 ; Retract filament slightly before layer change");
+                // infill paths
+                gCode.Add("; --- Infill Paths ---");
+                extrusion = AddPathsToGCode(infillPaths[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
             }
 
             string endCode = "M140 S0 ; set bed temperature to 0\r\n" +
@@ -119,8 +81,32 @@ namespace framework_iiw.Modules
                 }
             }
         }
+        // calculate and add paths to G-code
+        private double AddPathsToGCode(PathsD paths, List<string> gCode, double extrusion, double layerHeight, double lineWidth, double filamentArea)
+        {
+            foreach (var path in paths)
+            {
+                if (path.Count < 2)
+                    continue; 
 
-      
+                var start = path[0];
+                gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
+
+                for (int j = 1; j < path.Count; j++)
+                {
+                    var point = path[j];
+                    double distance = CalculateDistance(start, point);
+                    double extrudeAmount = (distance * layerHeight * lineWidth) / filamentArea; 
+                    extrusion += extrudeAmount;
+
+                    gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
+
+                    start = point; 
+                }
+            }
+            return extrusion;
+        }
+
         private double CalculateDistance(PointD p1, PointD p2)
         {
             double distance = Math.Sqrt(Math.Pow(p2.x - p1.x, 2) + Math.Pow(p2.y - p1.y, 2));
