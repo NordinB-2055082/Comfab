@@ -90,19 +90,28 @@ namespace framework_iiw.Modules
                     continue; 
 
                 var start = path[0];
+                var prev = start;
                 gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
 
                 for (int j = 1; j < path.Count; j++)
                 {
                     var point = path[j];
-                    double distance = CalculateDistance(start, point);
+                    double distance = CalculateDistance(prev, point);
                     double extrudeAmount = (distance * layerHeight * lineWidth) / filamentArea; 
                     extrusion += extrudeAmount;
 
                     gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
 
-                    start = point; 
+                    prev = point; 
                 }
+                //TODO: connect last point back to first point for outter shell, may cause issues elsewhere
+                double fdist = CalculateDistance(prev, start);
+                double fextrudeAmount = (fdist * layerHeight * lineWidth) / filamentArea;
+                extrusion += fextrudeAmount;
+                gCode.Add($"G1 X{start.x:F2} Y{start.y:F2} E{extrusion:F4} ; Extrude along path");
+
+
+
             }
             return extrusion;
         }
