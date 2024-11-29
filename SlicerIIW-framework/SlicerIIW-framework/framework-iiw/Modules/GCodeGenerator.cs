@@ -84,6 +84,8 @@ namespace framework_iiw.Modules
         // calculate and add paths to G-code
         private double AddPathsToGCode(PathsD paths, List<string> gCode, double extrusion, double layerHeight, double lineWidth, double filamentArea)
         {
+            double retractionAmount = 1.5;
+            string retractionSpeed ="F2700";
             foreach (var path in paths)
             {
                 if (path.Count < 2)
@@ -91,7 +93,9 @@ namespace framework_iiw.Modules
 
                 var start = path[0];
                 var prev = start;
-                gCode.Add($"G0 X{start.x:F2} Y{start.y:F2} ; Move to start of path");
+                gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} ; Retract filament");
+                gCode.Add($"G0 X{start.x + 40:F2} Y{start.y + 40:F2} ; Move to start of path");
+                gCode.Add($"G1 E{extrusion:F4} F{retractionSpeed} ; Restore filament");
 
                 for (int j = 1; j < path.Count; j++)
                 {
@@ -100,7 +104,7 @@ namespace framework_iiw.Modules
                     double extrudeAmount = (distance * layerHeight * lineWidth) / filamentArea; 
                     extrusion += extrudeAmount;
 
-                    gCode.Add($"G1 X{point.x:F2} Y{point.y:F2} E{extrusion:F4} ; Extrude along path");
+                    gCode.Add($"G1 X{point.x +40:F2} Y{point.y +40:F2} E{extrusion:F4} ; Extrude along path");
 
                     prev = point; 
                 }
@@ -108,7 +112,7 @@ namespace framework_iiw.Modules
                 double fdist = CalculateDistance(prev, start);
                 double fextrudeAmount = (fdist * layerHeight * lineWidth) / filamentArea;
                 extrusion += fextrudeAmount;
-                gCode.Add($"G1 X{start.x:F2} Y{start.y:F2} E{extrusion:F4} ; Extrude along path");
+                gCode.Add($"G1 X{start.x +40:F2} Y{start.y +40:F2} E{extrusion:F4} ; Extrude along path");
 
 
 
