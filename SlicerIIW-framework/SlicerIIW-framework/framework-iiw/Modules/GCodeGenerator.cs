@@ -21,8 +21,8 @@ namespace framework_iiw.Modules
             List<string> gCode = new List<string>();
             string startCode = "M140 S60 ;set bed temperature\r\n" +
                 "M190 S60 ;wait for bed temperature\r\n" +
-                "M104 S220 ;set nozzle temperature\r\n" +
-                "M109 S220 ;wait for nozzle temperature\r\n" +
+                "M104 S200 ;set nozzle temperature\r\n" +
+                "M109 S200 ;wait for nozzle temperature\r\n" +
                 "M82 ; absolute extrusion mode\r\n" +
                 "G28 ; Home all axes\r\n" +
                 "G92 E0 ; Reset Extruder\r\n" +

@@ -33,11 +33,12 @@ namespace framework_iiw.Modules
             var layers = new List<PathsD>();
             var clippedInfillPaths = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
-            var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             var layersInfillPaths = new List<PathsD>();
+            var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             // infill step 2
+            double infillSpacing = SlicerSettings.FilamentDiameter / SlicerSettings.InfillDensity;
             //double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/100;
-            double infillSpacing = 10;
+            //double infillSpacing = 10;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
