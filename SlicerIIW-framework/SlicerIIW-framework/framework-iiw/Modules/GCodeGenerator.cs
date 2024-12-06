@@ -11,12 +11,13 @@ namespace framework_iiw.Modules
 {
     class GCodeGenerator
     {
-        
+        private const double BedCenterX = 110.0; 
+        private const double BedCenterY = 110.0; 
         public GCodeGenerator()
         {
 
         }
-        public void GenerateGCode(List<PathsD> layers, List<PathsD> infillPaths)
+        public void GenerateGCode(List<PathsD> layers, List<PathsD> infillPaths, List<PathsD> roofs, List<PathsD> floors)
         {
             List<string> gCode = new List<string>();
             string startCode = "M140 S60 ;set bed temperature\r\n" +
@@ -27,7 +28,7 @@ namespace framework_iiw.Modules
                 "G28 ; Home all axes\r\n" +
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
-                "G1 X0.1 Y20 Z0.3 F5000.0 ; Move to start position\r\n" +
+                $"G1 X{BedCenterX:F1} Y{BedCenterY + 20:F1} Z0.3 F5000.0 ; Move to start position\r\n" +
 
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
@@ -48,13 +49,24 @@ namespace framework_iiw.Modules
                 double currentLayerHeight = SlicerSettings.LayerHeight * (i + 1);
                 gCode.Add($"G1 Z{currentLayerHeight:F2} F3000 ; Move to layer {i + 1}");
 
-                // shell paths
+                // Shell paths
                 gCode.Add("; --- Shell Paths ---");
                 extrusion = AddPathsToGCode(layers[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
 
-                // infill paths
+                // Infill paths
                 gCode.Add("; --- Infill Paths ---");
                 extrusion = AddPathsToGCode(infillPaths[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
+
+                // Floors
+                gCode.Add("; --- Floors ---");
+                extrusion = AddPathsToGCode(floors[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
+                gCode.Add("; --- Floors end ---");
+                // Roofs
+                gCode.Add("; --- Roofs ---");
+                extrusion = AddPathsToGCode(roofs[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
+                gCode.Add("; --- Roofs end ---");
+
+
             }
 
             string endCode = "M140 S0 ; set bed temperature to 0\r\n" +
@@ -65,7 +77,7 @@ namespace framework_iiw.Modules
                 "G1 F1800 E-3 ; Retract filament 3 mm to prevent oozing\r\n" +
                 "G1 F3000 Z20 ; Move Z Axis up 20 mm to allow filament ooze freely\r\n" +
                 "G90 ; Set coordinates to absolute\r\n" +
-                "G1 X0 Y235 F1000 ; Move Heat Bed to the front for easy print removal\r\n" +
+                $"G1 X0 Y{BedCenterY + 125:F1} F1000 ; Move Heat Bed to the front for easy print removal\r\n" +
                 "M107 ;fan off\r\n" +
                 "M84 ; Disable stepper motors\r\n" +
                 "M82 ; absulute extrusion mode\r\n" +
@@ -94,7 +106,7 @@ namespace framework_iiw.Modules
                 var start = path[0];
                 var prev = start;
                 gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} ; Retract filament");
-                gCode.Add($"G0 X{start.x + 40:F2} Y{start.y + 40:F2} ; Move to start of path");
+                gCode.Add($"G0 X{start.x + BedCenterX:F2} Y{start.y + BedCenterY:F2} ; Move to start of path");
                 gCode.Add($"G1 E{extrusion:F4} F{retractionSpeed} ; Restore filament");
 
                 for (int j = 1; j < path.Count; j++)
@@ -104,7 +116,7 @@ namespace framework_iiw.Modules
                     double extrudeAmount = (distance * layerHeight * lineWidth) / filamentArea; 
                     extrusion += extrudeAmount;
 
-                    gCode.Add($"G1 X{point.x +40:F2} Y{point.y +40:F2} E{extrusion:F4} ; Extrude along path");
+                    gCode.Add($"G1 X{point.x +BedCenterX:F2} Y{point.y +BedCenterY:F2} E{extrusion:F4} ; Extrude along path");
 
                     prev = point; 
                 }
@@ -112,7 +124,7 @@ namespace framework_iiw.Modules
                 double fdist = CalculateDistance(prev, start);
                 double fextrudeAmount = (fdist * layerHeight * lineWidth) / filamentArea;
                 extrusion += fextrudeAmount;
-                gCode.Add($"G1 X{start.x +40:F2} Y{start.y +40:F2} E{extrusion:F4} ; Extrude along path");
+                gCode.Add($"G1 X{start.x + BedCenterX:F2} Y{start.y +BedCenterY:F2} E{extrusion:F4} ; Extrude along path");
 
 
 

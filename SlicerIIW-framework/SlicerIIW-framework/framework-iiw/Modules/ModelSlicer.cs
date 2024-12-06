@@ -34,11 +34,17 @@ namespace framework_iiw.Modules
             var clippedInfillPaths = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
             var layersInfillPaths = new List<PathsD>();
+            var roofPaths = new List<PathsD>();
+            var floorPaths = new List<PathsD>();
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
             // infill step 2
             double infillSpacing = SlicerSettings.FilamentDiameter / SlicerSettings.InfillDensity;
             //double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/100;
             //double infillSpacing = 10;
+            
+            // roof and floor settings
+            int numRoofLayers = SlicerSettings.RoofLayers; 
+            int numFloorLayers = SlicerSettings.FloorLayers;
 
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
@@ -56,27 +62,65 @@ namespace framework_iiw.Modules
                 PathsD combinedInfillAndShell = CombineInfillAndShell(clippedInfill, layer);
                 clippedInfillPaths.Add(clippedInfill);
                 layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
+
+                // detect floors
+                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
+                floorPaths.Add(floors);
+
+                //detect roofs
+                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers);
+                roofPaths.Add(roofs);
             }
-            // TODO: LayersInfillPaths en LayersInnerPaths meegeven aan gCode 
             GCodeGenerator gCode = new GCodeGenerator();
-            gCode.GenerateGCode(layers, clippedInfillPaths);
+            gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths);
 
             return layersInfillPaths;
         }
+        // --- detect floors for a specific layer
+        private PathsD DetectFloors(int layerIdx, List<PathsD> layers, int numFloorLayers)
+        {
+            if (layerIdx == 0 || layers.Count < 2) return new PathsD(); // no floors for the first layer
 
-        // --- Slice Object At Specific Layer
+            var currentLayer = layers[layerIdx];
+            PathsD combined = new PathsD();
+
+            for (int i = 1; i <= numFloorLayers && layerIdx - i >= 0; i++)
+            {
+                combined = Clipper.BooleanOp(ClipType.Intersection, currentLayer, layers[layerIdx - i], FillRule.EvenOdd, 5);
+            }
+
+            return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
+        }
+
+        // --- detect roofs for a specific layer
+        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
+        {
+            if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
+
+            var currentLayer = layers[layerIdx];
+            PathsD combined = new PathsD();
+
+            for (int i = 1; i <= numRoofLayers && layerIdx + i < layers.Count; i++)
+            {
+                combined = Clipper.BooleanOp(ClipType.Intersection, currentLayer, layers[layerIdx + i], FillRule.EvenOdd, 5);
+            }
+
+            return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
+        }
+
+        // --- Slice object at specific layer
 
         private (PathsD, PathsD) SliceModelAtSpecificLayer(double layer, MeshGeometry3D meshGeometry, List<int> triangleIndices, List<Point3D> positions)
         {
             var slicingPlaneHeight = GetSlicingPlaneHeight(meshGeometry.Bounds.Z, layer);
 
-            // Get paths according to slicing
+            // get paths according to slicing
             List<LineSegment> paths = SlicingAlgorithm(slicingPlaneHeight, triangleIndices, positions);
 
-            // Combine paths
+            // combine paths
             PathsD combinedPaths = ConnectLineSegments(paths);
             
-            // Make the shells to print the walls
+            // make shells to print the walls
             var (innerPaths, shellPaths) = generateShellForPathsD(combinedPaths);
 
             return (shellPaths, innerPaths);
