@@ -29,7 +29,6 @@ namespace framework_iiw.Modules
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
                 $"G1 X{BedCenterX:F1} Y{BedCenterY + 20:F1} Z0.3 F5000.0 ; Move to start position\r\n" +
-
                 "G92 E0 ; Reset Extruder\r\n" +
                 "G1 Z2.0 F3000 ; Move Z axis up little to prevent scratching of Heat Bed\r\n" +
                 "G92 E0\r\nG1 F2400 E-5 ;retract filament to avoid oozing\r\nM107 ; fan off for first layer\r\n\r\n";
@@ -37,7 +36,7 @@ namespace framework_iiw.Modules
             gCode.Add(startCode);
 
 
-            // Filament and nozzle properties
+            // filament and nozzle properties
             double filamentArea = Math.PI * Math.Pow(SlicerSettings.FilamentDiameter / 2, 2);
             double layerHeight = SlicerSettings.LayerHeight;
             double lineWidth = SlicerSettings.NozzleThickness;
@@ -49,22 +48,19 @@ namespace framework_iiw.Modules
                 double currentLayerHeight = SlicerSettings.LayerHeight * (i + 1);
                 gCode.Add($"G1 Z{currentLayerHeight:F2} F3000 ; Move to layer {i + 1}");
 
-                // Shell paths
                 gCode.Add("; --- Shell Paths ---");
                 extrusion = AddPathsToGCode(layers[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
 
-                // Infill paths
                 gCode.Add("; --- Infill Paths ---");
                 extrusion = AddPathsToGCode(infillPaths[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
 
-                // Floors
                 gCode.Add("; --- Floors ---");
                 extrusion = AddPathsToGCode(floors[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
-                gCode.Add("; --- Floors end ---");
-                // Roofs
+                gCode.Add("; --- Floors end ---"); // om te debuggen
+                
                 gCode.Add("; --- Roofs ---");
                 extrusion = AddPathsToGCode(roofs[i], gCode, extrusion, layerHeight, lineWidth, filamentArea);
-                gCode.Add("; --- Roofs end ---");
+                gCode.Add("; --- Roofs end ---"); // om te debuggen
 
 
             }
