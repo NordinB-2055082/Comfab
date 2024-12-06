@@ -62,7 +62,7 @@ namespace framework_iiw.Modules
 
                 }
                 else {
-                    infillGrid = GenerateInfillGrid(meshBounds, infillSpacing, false);
+                    infillGrid = GenerateInfillGrid(meshBounds, infillSpacing, true);
                 }
                 // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
@@ -194,8 +194,11 @@ private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
         // ------ Generate infill Grid
         private PathsD GenerateInfillGrid(Rect3D bounds, double spacing, Boolean fullgrid = false)
         {
+            //TODO: alternate which direction has priority based on layer ID? Should only matter for bottoms/tops
             var infillPaths = new PathsD();
-
+            if(fullgrid){
+                spacing = spacing * 2;
+            }
             // Horizontal lines
             for (double y = bounds.Y; y <= bounds.Y + bounds.SizeY; y += spacing)
             {
@@ -208,18 +211,18 @@ private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
             }
             if (fullgrid)
             {
-
-            }
-            // Vertical lines
-            for (double x = bounds.X; x <= bounds.X + bounds.SizeX; x += spacing)
-            {
-                PathD verticalLine = new PathD
+                // Vertical lines
+                for (double x = bounds.X; x <= bounds.X + bounds.SizeX; x += spacing)
+                {
+                    PathD verticalLine = new PathD
                 {
                     new PointD(x, bounds.Y),
                     new PointD(x, bounds.Y + bounds.SizeY)
                 };
-                infillPaths.Add(verticalLine);
+                    infillPaths.Add(verticalLine);
+                }
             }
+
             PathsD infillPaths2 = Clipper.InflatePaths(infillPaths, -(SlicerSettings.NozzleThickness / 2), JoinType.Miter, EndType.Square, 5);
             return infillPaths2;
         }
