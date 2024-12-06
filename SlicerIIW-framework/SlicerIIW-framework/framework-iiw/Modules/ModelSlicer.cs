@@ -29,7 +29,7 @@ namespace framework_iiw.Modules
 
             List<int> triangleIndices = meshGeometry3D.TriangleIndices.ToList();
             List<Point3D> positions = meshGeometry3D.Positions.ToList();
-
+           
             var layers = new List<PathsD>();
             var clippedInfillPaths = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
@@ -37,6 +37,9 @@ namespace framework_iiw.Modules
             var roofPaths = new List<PathsD>();
             var floorPaths = new List<PathsD>();
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
+            var sizeXModel = geometryModel3D.Bounds.SizeX;
+            var sizeYModel = geometryModel3D.Bounds.SizeY;
+
             // infill step 2
             double infillSpacing = SlicerSettings.FilamentDiameter / SlicerSettings.InfillDensity;
             //double infillSpacing = SlicerSettings.InfillDensity * (meshBounds.SizeX + meshBounds.SizeY)/100;
@@ -45,7 +48,7 @@ namespace framework_iiw.Modules
             // roof and floor settings
             int numRoofLayers = SlicerSettings.RoofLayers; 
             int numFloorLayers = SlicerSettings.FloorLayers;
-
+               
             for (var idx = 0; idx < totalAmountOfLayers; idx++)
             {
                 var result = SliceModelAtSpecificLayer(idx * SlicerSettings.LayerHeight, meshGeometry3D, triangleIndices, positions);
@@ -79,7 +82,7 @@ namespace framework_iiw.Modules
                 roofPaths.Add(roofs);
             }
             GCodeGenerator gCode = new GCodeGenerator();
-            gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths);
+            gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
 
             return layersInfillPaths;
         }
