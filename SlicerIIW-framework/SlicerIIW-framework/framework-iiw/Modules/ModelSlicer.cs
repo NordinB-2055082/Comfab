@@ -62,7 +62,6 @@ namespace framework_iiw.Modules
                 if (idx < numFloorLayers || idx > totalAmountOfLayers - numRoofLayers)
                 {
                     infillGrid = GenerateInfillGrid(meshBounds, 1, false);
-
                 }
                 else {
                     infillGrid = GenerateInfillGrid(meshBounds, infillSpacing, true);
@@ -79,11 +78,11 @@ namespace framework_iiw.Modules
                 PathsD roofs = DetectRoofs(idx, layers, numRoofLayers);
                 roofPaths.Add(roofs);
                 //TODO ADD INFILL AND GIVE TO LAYERSINFILLPATHS
-                //layersInfillPaths[idx].AddRange(roofsInfillPaths); // Merge roof paths into the layer
+                //layersInfillPaths[idx].AddRange(roofsInfillPaths); // merge roof paths into the layer
                 
                 PathsD floors = DetectFloors(idx, layers, numFloorLayers);
                 floorPaths.Add(floors);
-                //layersInfillPaths[idx].AddRange(floorsInfillPaths); // Merge floor paths into the layer
+                //layersInfillPaths[idx].AddRange(floorsInfillPaths); // merge floor paths into the layer
             }
             GCodeGenerator gCode = new GCodeGenerator();
             gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
@@ -106,44 +105,8 @@ namespace framework_iiw.Modules
             return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
         }
 
-        // --- detect floors for a specific layer
-        private PathsD DetectFloors2(int layerIdx, List<PathsD> layers, int numFloorLayers)
-        {
-            if (layerIdx == 0)
-            {
-                return layers[layerIdx];
-            }
-
-            // Ensure there's at least one preceding layer
-            if (layers.Count < 2)
-            {
-                return new PathsD();
-            }
-
-            var currentLayer = layers[layerIdx];
-            PathsD combined = new PathsD();
-
-            for (int i = 1; i <= numFloorLayers && layerIdx - i >= 0; i++)
-            {
-                combined = Clipper2Lib.Clipper.BooleanOp(
-                    ClipType.Intersection,
-                    currentLayer,
-                    layers[layerIdx - i],
-                    FillRule.EvenOdd
-                );
-            }
-
-            return Clipper2Lib.Clipper.BooleanOp(
-                ClipType.Difference,
-                currentLayer,
-                combined,
-                FillRule.EvenOdd
-            );
-        }
-        
-
-// --- detect roofs for a specific layer
-private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
+        // --- detect roofs for a specific layer
+        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
         {
             if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
 
