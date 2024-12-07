@@ -73,13 +73,17 @@ namespace framework_iiw.Modules
                 clippedInfillPaths.Add(clippedInfill);
                 layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
 
-                // detect floors
-                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
-                floorPaths.Add(floors);
-
-                //detect roofs
+            }
+            for (int idx = 0; idx < totalAmountOfLayers; idx++)
+            {
                 PathsD roofs = DetectRoofs(idx, layers, numRoofLayers);
                 roofPaths.Add(roofs);
+                //TODO ADD INFILL AND GIVE TO LAYERSINFILLPATHS
+                //layersInfillPaths[idx].AddRange(roofsInfillPaths); // Merge roof paths into the layer
+                
+                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
+                floorPaths.Add(floors);
+                //layersInfillPaths[idx].AddRange(floorsInfillPaths); // Merge floor paths into the layer
             }
             GCodeGenerator gCode = new GCodeGenerator();
             gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
