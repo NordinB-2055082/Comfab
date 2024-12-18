@@ -81,6 +81,7 @@ namespace framework_iiw.Modules
                 PathsD floors = DetectFloors(idx, layers, numFloorLayers, infillGrid);
                 var layerInfill = clippedInfillPaths[idx];
                 layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill);
+                clippedInfillPaths[idx] = layerInfill;
                 PathsD combinedInfillAndShell = CombineInfillAndShell(layerInfill, layers[idx]);
                 layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
 
