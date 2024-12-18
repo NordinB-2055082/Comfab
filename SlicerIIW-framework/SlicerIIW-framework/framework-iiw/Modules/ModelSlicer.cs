@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Windows.Markup.Localizer;
 using System.Windows.Media.Media3D;
 
 using SlicerSettings = framework_iiw.Settings.Settings;
@@ -34,6 +35,8 @@ namespace framework_iiw.Modules
             var clippedInfillPaths = new List<PathsD>();
             var layersInnerPaths = new List<PathsD>(); 
             var layersInfillPaths = new List<PathsD>();
+            var FloorsAndRoofs = new List<PathsD>();
+
             var roofPaths = new List<PathsD>();
             var floorPaths = new List<PathsD>();
             var totalAmountOfLayers  = geometryModel3D.Bounds.SizeZ / SlicerSettings.LayerHeight;
@@ -75,19 +78,39 @@ namespace framework_iiw.Modules
             }
             for (int idx = 0; idx < totalAmountOfLayers; idx++)
             {
-                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers);
-                roofPaths.Add(roofs);
+                PathsD roofInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+
+                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, roofInfillGrid);
+                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
+                
+                //roofPaths.Add(roofs);
+                //floorPaths.Add(floors);
+
                 //TODO ADD INFILL AND GIVE TO LAYERSINFILLPATHS
                 //layersInfillPaths[idx].AddRange(roofsInfillPaths); // merge roof paths into the layer
-                
-                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
-                floorPaths.Add(floors);
+
                 //layersInfillPaths[idx].AddRange(floorsInfillPaths); // merge floor paths into the layer
+                if (roofs.Count > 0)
+                {
+                    //PathsD roofInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+                    PathsD roofInfill = ClipInfillToLayer(roofInfillGrid, roofs);
+                    layersInfillPaths[idx].AddRange(roofInfill);
+                    roofPaths.Add(roofs);
+                }
+
+                // Generate and merge floor infill
+                if (floors.Count > 0)
+                {
+                    PathsD floorInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+                    PathsD floorInfill = ClipInfillToLayer(floorInfillGrid, floors);
+                    layersInfillPaths[idx].AddRange(floorInfill);
+                    floorPaths.Add(floorInfill);
+                }
             }
             GCodeGenerator gCode = new GCodeGenerator();
-            gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
+            //gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
 
-            return layersInfillPaths;
+            return roofPaths;
         }
         // --- detect floors for a specific layer
         private PathsD DetectFloors(int layerIdx, List<PathsD> layers, int numFloorLayers)
@@ -96,29 +119,39 @@ namespace framework_iiw.Modules
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
+            combined.AddRange(currentLayer);
+
+            //clipperStore.AddPaths(infillGrid, PathType.Subject, false);
+            //clipperStore.AddPaths(innerPaths, PathType.Clip, false);
+
+            //clipperStore.Execute(ClipType.Intersection, FillRule.NonZero, result);
 
             for (int i = 1; i <= numFloorLayers && layerIdx - i >= 0; i++)
             {
-                combined = Clipper.BooleanOp(ClipType.Intersection, currentLayer, layers[layerIdx - i], FillRule.EvenOdd, 5);
+                combined.AddRange(Clipper.BooleanOp(ClipType.Intersection, combined, layers[layerIdx - i], FillRule.EvenOdd, 5));
             }
 
             return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
         }
 
         // --- detect roofs for a specific layer
-        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers)
+        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers, PathsD roofInfillGrid)
         {
             if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
-
+            combined.AddRange(ClipInfillToLayer(roofInfillGrid, currentLayer));
+            PathsD removed = new PathsD();
             for (int i = 1; i <= numRoofLayers && layerIdx + i < layers.Count; i++)
             {
-                combined = Clipper.BooleanOp(ClipType.Intersection, currentLayer, layers[layerIdx + i], FillRule.EvenOdd, 5);
+                var localRoof = ClipInfillToLayer(roofInfillGrid, layers[layerIdx + i]);
+                removed = (Clipper.BooleanOp(ClipType.Union, localRoof, removed, FillRule.EvenOdd, 5));
             }
 
-            return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
+            var local = Clipper.BooleanOp(ClipType.Difference, combined, removed, FillRule.EvenOdd, 5);
+            return local;
+            //return Clipper.InflatePaths(local, -((SlicerSettings.NozzleThickness / 2)), JoinType.Miter, EndType.Polygon, 5);
         }
 
         // --- Slice object at specific layer
@@ -157,14 +190,11 @@ namespace framework_iiw.Modules
             innerPaths.AddRange(Clipper.InflatePaths(sortedPolygons, -((SlicerSettings.NozzleThickness / 2) + ((SlicerSettings.AmountOfShells - 1) * SlicerSettings.NozzleThickness)), JoinType.Miter, EndType.Polygon, 5));
 
             return (innerPaths, results);
-
-
         }
 
         // ------ Generate infill Grid
         private PathsD GenerateInfillGrid(Rect3D bounds, double spacing, bool odd,  Boolean fullgrid = false)
         {
-            //TODO: alternate which direction has priority based on layer ID? Should only matter for bottoms/tops
             var infillPaths = new PathsD();
             if(fullgrid){
                 spacing = spacing * 2;
