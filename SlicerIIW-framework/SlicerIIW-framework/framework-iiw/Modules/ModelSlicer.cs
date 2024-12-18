@@ -71,87 +71,61 @@ namespace framework_iiw.Modules
                 }
                 // step 4: clip the infill pattern to the current layer's inner paths
                 PathsD clippedInfill = ClipInfillToLayer(infillGrid, innerPaths);
-                PathsD combinedInfillAndShell = CombineInfillAndShell(clippedInfill, layer);
                 clippedInfillPaths.Add(clippedInfill);
-                layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
-
             }
             for (int idx = 0; idx < totalAmountOfLayers; idx++)
             {
-                PathsD roofInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+                PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
 
-                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, roofInfillGrid);
-                PathsD floors = DetectFloors(idx, layers, numFloorLayers);
-                
-                //roofPaths.Add(roofs);
-                //floorPaths.Add(floors);
+                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, infillGrid);
+                PathsD floors = DetectFloors(idx, layers, numFloorLayers, infillGrid);
+                var layerInfill = clippedInfillPaths[idx];
+                layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill);
+                PathsD combinedInfillAndShell = CombineInfillAndShell(layerInfill, layers[idx]);
+                layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
 
-                //TODO ADD INFILL AND GIVE TO LAYERSINFILLPATHS
-                //layersInfillPaths[idx].AddRange(roofsInfillPaths); // merge roof paths into the layer
-
-                //layersInfillPaths[idx].AddRange(floorsInfillPaths); // merge floor paths into the layer
-                if (roofs.Count > 0)
-                {
-                    //PathsD roofInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
-                    PathsD roofInfill = ClipInfillToLayer(roofInfillGrid, roofs);
-                    layersInfillPaths[idx].AddRange(roofInfill);
-                    roofPaths.Add(roofs);
-                }
-
-                // Generate and merge floor infill
-                if (floors.Count > 0)
-                {
-                    PathsD floorInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
-                    PathsD floorInfill = ClipInfillToLayer(floorInfillGrid, floors);
-                    layersInfillPaths[idx].AddRange(floorInfill);
-                    floorPaths.Add(floorInfill);
-                }
             }
             GCodeGenerator gCode = new GCodeGenerator();
-            //gCode.GenerateGCode(layers, clippedInfillPaths, roofPaths, floorPaths, sizeXModel, sizeYModel);
+            gCode.GenerateGCode(layers, clippedInfillPaths, sizeXModel, sizeYModel);
 
-            return roofPaths;
+            return layersInfillPaths;
         }
         // --- detect floors for a specific layer
-        private PathsD DetectFloors(int layerIdx, List<PathsD> layers, int numFloorLayers)
+        private PathsD DetectFloors(int layerIdx, List<PathsD> layers, int numFloorLayers, PathsD infillGrid)
         {
             if (layerIdx == 0 || layers.Count < 2) return new PathsD(); // no floors for the first layer
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
-            combined.AddRange(currentLayer);
-
-            //clipperStore.AddPaths(infillGrid, PathType.Subject, false);
-            //clipperStore.AddPaths(innerPaths, PathType.Clip, false);
-
-            //clipperStore.Execute(ClipType.Intersection, FillRule.NonZero, result);
-
+            combined.AddRange(ClipInfillToLayer(infillGrid, currentLayer));
+            PathsD removed = new PathsD();
             for (int i = 1; i <= numFloorLayers && layerIdx - i >= 0; i++)
             {
-                combined.AddRange(Clipper.BooleanOp(ClipType.Intersection, combined, layers[layerIdx - i], FillRule.EvenOdd, 5));
+                var localFloor = ClipInfillToLayer(infillGrid, layers[layerIdx - i]);
+                removed = (Clipper.BooleanOp(ClipType.Union, localFloor, removed, FillRule.EvenOdd, 5));
             }
 
-            return Clipper.BooleanOp(ClipType.Difference, currentLayer, combined, FillRule.EvenOdd, 5);
+            var local = Clipper.BooleanOp(ClipType.Difference, combined, removed, FillRule.EvenOdd, 5);
+            return local;
         }
 
         // --- detect roofs for a specific layer
-        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers, PathsD roofInfillGrid)
+        private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers, PathsD infillGrid)
         {
             if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
-            combined.AddRange(ClipInfillToLayer(roofInfillGrid, currentLayer));
+            combined.AddRange(ClipInfillToLayer(infillGrid, currentLayer));
             PathsD removed = new PathsD();
             for (int i = 1; i <= numRoofLayers && layerIdx + i < layers.Count; i++)
             {
-                var localRoof = ClipInfillToLayer(roofInfillGrid, layers[layerIdx + i]);
+                var localRoof = ClipInfillToLayer(infillGrid, layers[layerIdx + i]);
                 removed = (Clipper.BooleanOp(ClipType.Union, localRoof, removed, FillRule.EvenOdd, 5));
             }
 
             var local = Clipper.BooleanOp(ClipType.Difference, combined, removed, FillRule.EvenOdd, 5);
             return local;
-            //return Clipper.InflatePaths(local, -((SlicerSettings.NozzleThickness / 2)), JoinType.Miter, EndType.Polygon, 5);
         }
 
         // --- Slice object at specific layer
@@ -271,6 +245,22 @@ namespace framework_iiw.Modules
         }
 
         // --- Slicing Algorithm
+        private PathsD CombineInfillAndRoofFloors(PathsD roofs, PathsD floors, PathsD infill)
+        {
+            ClipperD clipperStore = new ClipperD();
+            clipperStore.AddPaths(infill, PathType.Subject, false);
+            clipperStore.AddPaths(roofs, PathType.Clip, false); 
+            clipperStore.AddPaths(floors, PathType.Clip, false);
+
+            clipperStore.Execute(ClipType.Difference, FillRule.NonZero, infill);
+            var combined = (Clipper.BooleanOp(ClipType.Union, floors, roofs, FillRule.EvenOdd, 5));
+            infill = (Clipper.BooleanOp(ClipType.Union, infill, combined, FillRule.EvenOdd, 5));
+
+            //TODO: remove floor & roof region from infill
+            //TODO: add floor & roof to infill
+
+            return infill;
+        }
         private PathsD CombineInfillAndShell(PathsD infill, PathsD shell)
         {
             PathsD result = new PathsD();

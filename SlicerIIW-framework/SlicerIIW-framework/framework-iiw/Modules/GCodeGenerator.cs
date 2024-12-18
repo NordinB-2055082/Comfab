@@ -17,7 +17,7 @@ namespace framework_iiw.Modules
         {
 
         }
-        public void GenerateGCode(List<PathsD> layers, List<PathsD> infillPaths, List<PathsD> roofs, List<PathsD> floors, double sizeXModel, double sizeYModel)
+        public void GenerateGCode(List<PathsD> layers, List<PathsD> infillPaths, double sizeXModel, double sizeYModel)
         {
             List<string> gCode = new List<string>();
             var modelCenterX = BedCenterX - sizeXModel/2;
@@ -56,13 +56,13 @@ namespace framework_iiw.Modules
                 gCode.Add("; --- Infill Paths ---");
                 extrusion = AddPathsToGCode(infillPaths[i], gCode, extrusion, layerHeight, lineWidth, filamentArea, modelCenterX, modelCenterY);
 
-                gCode.Add("; --- Floors ---");
-                extrusion = AddPathsToGCode(floors[i], gCode, extrusion, layerHeight, lineWidth, filamentArea, modelCenterX, modelCenterY);
-                gCode.Add("; --- Floors end ---"); // om te debuggen
+                //gCode.Add("; --- Floors ---");
+                //extrusion = AddPathsToGCode(floors[i], gCode, extrusion, layerHeight, lineWidth, filamentArea, modelCenterX, modelCenterY);
+                //gCode.Add("; --- Floors end ---"); // om te debuggen
                 
-                gCode.Add("; --- Roofs ---");
-                extrusion = AddPathsToGCode(roofs[i], gCode, extrusion, layerHeight, lineWidth, filamentArea, modelCenterX, modelCenterY);
-                gCode.Add("; --- Roofs end ---"); // om te debuggen
+                //gCode.Add("; --- Roofs ---");
+                //extrusion = AddPathsToGCode(roofs[i], gCode, extrusion, layerHeight, lineWidth, filamentArea, modelCenterX, modelCenterY);
+                //gCode.Add("; --- Roofs end ---"); // om te debuggen
 
 
             }
