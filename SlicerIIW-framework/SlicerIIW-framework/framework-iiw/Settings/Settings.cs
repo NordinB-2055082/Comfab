@@ -10,8 +10,8 @@ namespace framework_iiw.Settings
 
     class Settings
     {
-        public static double LayerHeight = 0.20, NozzleThickness = 0.4, FilamentDiameter = 1.75, InfillDensity=0.6; // Filamentdiameter in mm
-        public static int AmountOfShells = 2, RoofLayers = 3, FloorLayers = 3 ;
+        public static double LayerHeight = 0.20, NozzleThickness = 0.4, FilamentDiameter = 1.75, InfillDensity=0.3; // Filamentdiameter in mm
+        public static int AmountOfShells = 2, RoofLayers = 7, FloorLayers = 4 ;
       
     }
 }

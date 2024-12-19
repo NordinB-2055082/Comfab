@@ -62,7 +62,7 @@ namespace framework_iiw.Modules
                 layersInnerPaths.Add(innerPaths);
                 PathsD infillGrid = new PathsD();
                 // step 3: generate the infill grid for the current layer
-                if (idx < numFloorLayers || idx > totalAmountOfLayers - numRoofLayers)
+                if (idx < numFloorLayers || idx > totalAmountOfLayers -1 - numRoofLayers)
                 {
                     infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness*2, (idx%2==0) , false);
                 }
@@ -75,15 +75,23 @@ namespace framework_iiw.Modules
             }
             for (int idx = 0; idx < totalAmountOfLayers; idx++)
             {
-                PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+                if((idx < numFloorLayers || idx > totalAmountOfLayers - 1 - numRoofLayers))
+                {
+                    layersInfillPaths.Add(CombineInfillAndShell(clippedInfillPaths[idx], layers[idx]));
+                }
+                else
+                {
 
-                PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, infillGrid);
-                PathsD floors = DetectFloors(idx, layers, numFloorLayers, infillGrid);
-                var layerInfill = clippedInfillPaths[idx];
-                layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill);
-                clippedInfillPaths[idx] = layerInfill;
-                PathsD combinedInfillAndShell = CombineInfillAndShell(layerInfill, layers[idx]);
-                layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
+                    PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
+
+                    PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, infillGrid);
+                    PathsD floors = DetectFloors(idx, layers, numFloorLayers, infillGrid);
+                    var layerInfill = clippedInfillPaths[idx];
+                    layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill);
+                    clippedInfillPaths[idx] = layerInfill;
+                    PathsD combinedInfillAndShell = CombineInfillAndShell(layerInfill, layers[idx]);
+                    layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
+                }
 
             }
             GCodeGenerator gCode = new GCodeGenerator();
