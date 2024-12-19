@@ -103,9 +103,9 @@ namespace framework_iiw.Modules
 
                 var start = path[0];
                 var prev = start;
-                gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} ; Retract filament");
-                gCode.Add($"G0 X{start.x + modelCenterX:F2} Y{start.y + modelCenterY:F2} ; Move to start of path");
-                gCode.Add($"G1 E{extrusion:F4} F{retractionSpeed} ; Restore filament");
+                gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} F2700 ; Retract filament");
+                gCode.Add($"G0 X{start.x + modelCenterX:F2} Y{start.y + modelCenterY:F2} F6000 ; Move quickly to start of path");
+                gCode.Add($"G1 E{extrusion:F4} F2700 ; Restore filament");
 
                 for (int j = 1; j < path.Count; j++)
                 {
@@ -114,7 +114,7 @@ namespace framework_iiw.Modules
                     double extrudeAmount = (distance * layerHeight * lineWidth) / filamentArea; 
                     extrusion += extrudeAmount;
 
-                    gCode.Add($"G1 X{point.x +modelCenterX:F2} Y{point.y + modelCenterY:F2} E{extrusion:F4} ; Extrude along path");
+                    gCode.Add($"G1 X{point.x + modelCenterX:F2} Y{point.y + modelCenterY:F2} E{extrusion:F4} F6000 ; Extrude along path");
 
                     prev = point; 
                 }
@@ -122,7 +122,7 @@ namespace framework_iiw.Modules
                 double fdist = CalculateDistance(prev, start);
                 double fextrudeAmount = (fdist * layerHeight * lineWidth) / filamentArea;
                 extrusion += fextrudeAmount;
-                gCode.Add($"G1 X{start.x + modelCenterX:F2} Y{start.y +modelCenterY:F2} E{extrusion:F4} ; Extrude along path");
+                gCode.Add($"G1 X{start.x + modelCenterX:F2} Y{start.y +modelCenterY:F2} E{extrusion:F4} F6000 ; Extrude along path");
 
 
 
