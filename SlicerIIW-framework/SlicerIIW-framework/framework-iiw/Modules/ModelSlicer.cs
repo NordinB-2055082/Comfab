@@ -102,16 +102,18 @@ namespace framework_iiw.Modules
         // --- detect floors for a specific layer
         private PathsD DetectFloors(int layerIdx, List<PathsD> layers, int numFloorLayers, PathsD infillGrid)
         {
-            if (layerIdx == 0 || layers.Count < 2) return new PathsD(); // no floors for the first layer
+            //if (layerIdx == 0 || layers.Count < 2) return new PathsD(); // no floors for the first layer
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
             combined.AddRange(ClipInfillToLayer(infillGrid, currentLayer));
             PathsD removed = new PathsD();
+            removed = ClipInfillToLayer(infillGrid, layers[layerIdx - 1]);
+
             for (int i = 1; i <= numFloorLayers && layerIdx - i >= 0; i++)
             {
                 var localFloor = ClipInfillToLayer(infillGrid, layers[layerIdx - i]);
-                removed = (Clipper.BooleanOp(ClipType.Union, localFloor, removed, FillRule.EvenOdd, 5));
+                removed = (Clipper.BooleanOp(ClipType.Intersection, removed, localFloor, FillRule.EvenOdd, 5));
             }
 
             var local = Clipper.BooleanOp(ClipType.Difference, combined, removed, FillRule.EvenOdd, 5);
@@ -121,16 +123,17 @@ namespace framework_iiw.Modules
         // --- detect roofs for a specific layer
         private PathsD DetectRoofs(int layerIdx, List<PathsD> layers, int numRoofLayers, PathsD infillGrid)
         {
-            if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
+            //if (layerIdx == layers.Count - 1 || layers.Count < 2) return new PathsD(); // no roofs for the last layer
 
             var currentLayer = layers[layerIdx];
             PathsD combined = new PathsD();
             combined.AddRange(ClipInfillToLayer(infillGrid, currentLayer));
             PathsD removed = new PathsD();
+            removed = ClipInfillToLayer(infillGrid, layers[layerIdx + 1]);
             for (int i = 1; i <= numRoofLayers && layerIdx + i < layers.Count; i++)
             {
                 var localRoof = ClipInfillToLayer(infillGrid, layers[layerIdx + i]);
-                removed = (Clipper.BooleanOp(ClipType.Union, localRoof, removed, FillRule.EvenOdd, 5));
+                removed = (Clipper.BooleanOp(ClipType.Intersection, removed, localRoof, FillRule.EvenOdd, 5));
             }
 
             var local = Clipper.BooleanOp(ClipType.Difference, combined, removed, FillRule.EvenOdd, 5);
