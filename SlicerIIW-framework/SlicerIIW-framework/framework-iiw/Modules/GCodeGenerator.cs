@@ -103,7 +103,7 @@ namespace framework_iiw.Modules
 
                 var start = path[0];
                 var prev = start;
-                gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} F2700 ; Retract filament");
+                gCode.Add($"G1 E{extrusion - retractionAmount:F4} F{retractionSpeed} ; Retract filament");
                 gCode.Add($"G0 X{start.x + modelCenterX:F2} Y{start.y + modelCenterY:F2} F6000 ; Move quickly to start of path");
                 gCode.Add($"G1 E{extrusion:F4} F2700 ; Restore filament");
 
