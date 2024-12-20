@@ -82,12 +82,14 @@ namespace framework_iiw.Modules
                 else
                 {
 
-                    PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
-
+                    PathsD infillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), true);
+                    PathsD fullInfillGrid = GenerateInfillGrid(meshBounds, SlicerSettings.NozzleThickness * 2, (idx % 2 == 0), false);
                     PathsD roofs = DetectRoofs(idx, layers, numRoofLayers, infillGrid);
                     PathsD floors = DetectFloors(idx, layers, numFloorLayers, infillGrid);
+                    PathsD fullRoofs = DetectRoofs(idx, layers, numRoofLayers, fullInfillGrid);
+                    PathsD fullFloors = DetectFloors(idx, layers, numFloorLayers, fullInfillGrid);
                     var layerInfill = clippedInfillPaths[idx];
-                    layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill);
+                    layerInfill = CombineInfillAndRoofFloors(roofs, floors, layerInfill, fullRoofs, fullFloors);
                     clippedInfillPaths[idx] = layerInfill;
                     PathsD combinedInfillAndShell = CombineInfillAndShell(layerInfill, layers[idx]);
                     layersInfillPaths.Add(combinedInfillAndShell);  // store the infill paths
@@ -239,7 +241,6 @@ namespace framework_iiw.Modules
                 
             }
 
-
             PathsD infillPaths2 = Clipper.InflatePaths(infillPaths, -(SlicerSettings.NozzleThickness / 2), JoinType.Miter, EndType.Square, 5);
             return infillPaths2;
         }
@@ -257,15 +258,17 @@ namespace framework_iiw.Modules
         }
 
         // --- Slicing Algorithm
-        private PathsD CombineInfillAndRoofFloors(PathsD roofs, PathsD floors, PathsD infill)
+        private PathsD CombineInfillAndRoofFloors(PathsD roofs, PathsD floors, PathsD infill, PathsD fullRoofs, PathsD fullFloors )
         {
             ClipperD clipperStore = new ClipperD();
             clipperStore.AddPaths(infill, PathType.Subject, false);
-            clipperStore.AddPaths(roofs, PathType.Clip, false); 
+            clipperStore.AddPaths(roofs, PathType.Clip, false);
             clipperStore.AddPaths(floors, PathType.Clip, false);
 
             clipperStore.Execute(ClipType.Difference, FillRule.NonZero, infill);
-            var combined = (Clipper.BooleanOp(ClipType.Union, floors, roofs, FillRule.EvenOdd, 5));
+            //return infill;
+            var combined = (Clipper.BooleanOp(ClipType.Union, fullFloors, fullRoofs, FillRule.EvenOdd, 5));
+            infill = (Clipper.BooleanOp(ClipType.Difference, infill, combined, FillRule.EvenOdd, 5));
             infill = (Clipper.BooleanOp(ClipType.Union, infill, combined, FillRule.EvenOdd, 5));
 
             //TODO: remove floor & roof region from infill
